@@ -1,0 +1,147 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  AUTHOR
+  ADMIN
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketCategory {
+  ROYALTY_PAYMENTS
+  ISBN_METADATA
+  PRINTING_QUALITY
+  DISTRIBUTION_AVAILABILITY
+  BOOK_STATUS_PRODUCTION
+  GENERAL_INQUIRY
+}
+
+enum TicketPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum AiStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum MessageType {
+  RESPONSE
+  INTERNAL_NOTE
+}
+
+model User {
+  id             String          @id
+  name           String
+  email          String          @unique
+  passwordHash   String
+  role           UserRole
+  phone          String?
+  city           String?
+  joinedDate     DateTime?       @db.Date
+
+  books          Book[]          @relation("AuthorBooks")
+  tickets        Ticket[]        @relation("AuthorTickets")
+  assignedTickets Ticket[]       @relation("AssignedTickets")
+  messages       TicketMessage[] @relation("MessageSender")
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Book {
+  id                     String    @id
+  authorId               String
+  title                  String
+  isbn                   String    @unique
+  genre                  String
+  publicationDate        DateTime? @db.Date
+  status                 String
+  mrp                    Decimal?  @db.Decimal(10, 2)
+  authorRoyaltyPerCopy   Decimal?  @db.Decimal(10, 2)
+  totalCopiesSold       Int       @default(0)
+  totalRoyaltyEarned    Decimal   @db.Decimal(12, 2)
+  royaltyPaid            Decimal   @db.Decimal(12, 2)
+  royaltyPending         Decimal   @db.Decimal(12, 2)
+  lastRoyaltyPayoutDate DateTime?  @db.Date
+  printPartner           String?
+  availableOn            String[]  @default([])
+
+  author                 User      @relation("AuthorBooks", fields: [authorId], references: [id])
+  tickets                Ticket[]
+
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([authorId])
+}
+
+model Ticket {
+  id               String         @id @default(uuid())
+  authorId         String
+  bookId           String?
+
+  subject          String
+  description      String         @db.Text
+
+  status           TicketStatus   @default(OPEN)
+  category         TicketCategory @default(GENERAL_INQUIRY)
+  priority         TicketPriority @default(MEDIUM)
+
+  aiCategory       TicketCategory?
+  aiPriority       TicketPriority?
+  aiDraft          String?        @db.Text
+  aiStatus         AiStatus       @default(PENDING)
+  aiError          String?        @db.Text
+
+  assignedToId     String?
+
+  author           User           @relation("AuthorTickets", fields: [authorId], references: [id])
+  book             Book?          @relation(fields: [bookId], references: [id])
+  assignedTo       User?          @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  messages         TicketMessage[]
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([authorId])
+  @@index([bookId])
+  @@index([status, category, priority])
+  @@index([createdAt])
+}
+
+model TicketMessage {
+  id         String      @id @default(uuid())
+  ticketId  String
+  senderId  String
+  content    String      @db.Text
+  type       MessageType
+
+  ticket     Ticket      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender     User        @relation("MessageSender", fields: [senderId], references: [id])
+
+  createdAt  DateTime    @default(now())
+
+  @@index([ticketId, createdAt])
+}
