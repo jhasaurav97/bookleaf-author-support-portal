@@ -5,7 +5,11 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "gcp-build": "prisma generate"
+  },
+  "engines": {
+    "node": "24.x"
   },
   "keywords": [],
   "author": "",
